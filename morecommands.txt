@@ -1,0 +1,69 @@
+# Create a file with a single line
+echo "Hello Hadoop" | hadoop fs -put - /user/hadoop/hello.txt
+
+# Append a line to an existing file (Hadoop 2+)
+echo "Another line" | hadoop fs -appendToFile - /user/hadoop/hello.txt
+
+# List files in a directory
+hadoop fs -ls /user/hadoop
+
+# List recursively
+hadoop fs -ls -R /user/hadoop
+
+# Check if a file exists
+hadoop fs -test -e /user/hadoop/hello.txt && echo "Exists"
+
+# Delete a single file
+hadoop fs -rm /user/hadoop/hello.txt
+
+# Delete recursively (directory and all contents)
+hadoop fs -rm -r /user/hadoop/mydir
+
+# Delete multiple files with a pattern (bulk delete)
+hadoop fs -rm /user/hadoop/logs/*.log
+hadoop fs -rm /user/hadoop/data/temp_*
+
+# Force delete without prompt
+hadoop fs -rm -f /user/hadoop/tempfile.txt
+
+# Copy local file to HDFS
+hadoop fs -put /home/user/localfile.txt /user/hadoop/
+
+# Copy HDFS file to local
+hadoop fs -get /user/hadoop/hello.txt /home/user/
+
+# Alternative: copy to HDFS and rename
+hadoop fs -copyFromLocal /home/user/file.txt /user/hadoop/renamed_file.txt
+
+# Display entire file
+hadoop fs -cat /user/hadoop/hello.txt
+
+# Display first N bytes
+hadoop fs -head -n 5 /user/hadoop/hello.txt
+
+# Display last N bytes
+hadoop fs -tail /user/hadoop/hello.txt
+
+# Create directory
+hadoop fs -mkdir /user/hadoop/mydir
+
+# Create nested directories
+hadoop fs -mkdir -p /user/hadoop/mydir/subdir1/subdir2
+
+# Rename a file
+hadoop fs -mv /user/hadoop/file1.txt /user/hadoop/file_renamed.txt
+
+# Move files to another directory
+hadoop fs -mv /user/hadoop/*.txt /user/hadoop/backup/
+
+
+# Check size of a file or directory
+hadoop fs -du -h /user/hadoop/
+
+# Summarize total size
+hadoop fs -dus -h /user/hadoop/
+
+
+# Delete all log files older than a certain pattern
+hadoop fs -ls /user/hadoop/logs/ | grep "2023-09" | awk '{print $8}' | xargs hadoop fs -rm
+
