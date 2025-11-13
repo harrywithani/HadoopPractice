@@ -1,72 +1,67 @@
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.StringTokenizer;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.MapReduceBase;
-import org.apache.hadoop.mapred.Mapper;
-import org.apache.hadoop.mapred.Reducer;
-import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapred.FileInputFormat;
-import org.apache.hadoop.mapred.FileOutputFormat;
-import org.apache.hadoop.mapred.JobClient;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 public class WordCount {
 
-    // ---------------- Mapper ----------------
-    public static class TokenizerMapper extends MapReduceBase
-            implements Mapper<Object, Text, Text, IntWritable> {
+    public static class MyMapper
+            extends Mapper<Object, Text, Text, IntWritable> {
 
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
 
-        public void map(Object key, Text value,
-                        OutputCollector<Text, IntWritable> output,
-                        Reporter reporter) throws IOException {
-            // Split each line into words
-            StringTokenizer itr = new StringTokenizer(value.toString());
-            while (itr.hasMoreTokens()) {
-                word.set(itr.nextToken());
-                output.collect(word, one); // emit (word, 1)
+        public void map(Object key, Text value, Context context)
+                throws IOException, InterruptedException {
+
+            String line = value.toString();
+            StringTokenizer words = new StringTokenizer(line);
+
+            while (words.hasMoreTokens()) {
+                word.set(words.nextToken());
+                context.write(word, one);
             }
         }
     }
 
-    // ---------------- Reducer ----------------
-    public static class IntSumReducer extends MapReduceBase
-            implements Reducer<Text, IntWritable, Text, IntWritable> {
+    public static class MyReducer
+            extends Reducer<Text, IntWritable, Text, IntWritable> {
 
-        public void reduce(Text key, Iterator<IntWritable> values,
-                           OutputCollector<Text, IntWritable> output,
-                           Reporter reporter) throws IOException {
+        public void reduce(Text key, Iterable<IntWritable> values,
+                           Context context) throws IOException, InterruptedException {
+
             int sum = 0;
-            while (values.hasNext()) {
-                sum += values.next().get(); // sum all counts
+            for (IntWritable val : values) {
+                sum += val.get();
             }
-            output.collect(key, new IntWritable(sum)); // emit (word, total_count)
+            context.write(key, new IntWritable(sum));
         }
     }
 
-    // ---------------- Main ----------------
     public static void main(String[] args) throws Exception {
-        JobConf conf = new JobConf(WordCount.class);
-        conf.setJobName("wordcount");
 
-        conf.setOutputKeyClass(Text.class);
-        conf.setOutputValueClass(IntWritable.class);
+        Configuration conf = new Configuration();
+        Job job = new Job(conf, "WordCount");
 
-        conf.setMapperClass(TokenizerMapper.class);
-        conf.setCombinerClass(IntSumReducer.class);
-        conf.setReducerClass(IntSumReducer.class);
+        job.setJarByClass(WordCount.class);
+        job.setMapperClass(MyMapper.class);
+        job.setCombinerClass(MyReducer.class);
+        job.setReducerClass(MyReducer.class);
 
-        FileInputFormat.addInputPath(conf, new Path(args[0]));
-        FileOutputFormat.setOutputPath(conf, new Path(args[1]));
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
 
-        JobClient.runJob(conf);
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 }
-

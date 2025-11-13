@@ -1,0 +1,45 @@
+pig -x mapreduce script.pig
+
+transactions = LOAD '/user/hadoop/retail/input/transactions.csv'
+USING PigStorage(',')
+AS (txn_id:int, date:chararray, customer_id:int, product_id:int,
+    category:chararray, quantity:int, price:int);
+
+valid_txn = FILTER transactions BY txn_id > 0;
+
+sales = FOREACH valid_txn GENERATE txn_id, category, (quantity * price) AS total_sale;
+
+grouped = GROUP sales BY category;
+
+category_sales = FOREACH grouped GENERATE
+                    group AS category,
+                    SUM(sales.total_sale) AS total_sales;
+
+STORE category_sales INTO '/user/hadoop/retail/output/category_sales'
+USING PigStorage(',');
+
+or
+DUMP category_sales;
+
+-- find top selling category
+ordered = ORDER category_sales BY total_sales DESC;
+top1 = LIMIT ordered 1;
+DUMP top1;
+
+
+-- average spending per customer
+customer_sales = FOREACH valid_txn GENERATE customer_id, (quantity * price) AS total;
+grouped_customer = GROUP customer_sales BY customer_id;
+avg_sales = FOREACH grouped_customer GENERATE group AS customer_id, AVG(customer_sales.total) AS avg_spending;
+DUMP avg_sales;
+
+
+-- transactions per category
+cat_count = FOREACH grouped GENERATE group AS category, COUNT(sales) AS txn_count;
+DUMP cat_count;
+
+
+-- sort customers by total spending
+total_per_cust = FOREACH grouped_customer GENERATE group AS customer_id, SUM(customer_sales.total) AS total_spent;
+ordered_cust = ORDER total_per_cust BY total_spent DESC;
+DUMP ordered_cust;
